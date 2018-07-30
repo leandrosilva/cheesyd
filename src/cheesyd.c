@@ -10,7 +10,7 @@
 #include <string.h>
 
 #include <wkhtmltox/pdf.h>
-#include <hiredis.h>
+#include <hiredis/hiredis.h>
 
 /* Test redis connection */
 void test_redis()
