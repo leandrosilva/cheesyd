@@ -6,7 +6,40 @@
 */
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include <wkhtmltox/pdf.h>
+#include <hiredis.h>
+
+/* Test redis connection */
+void test_redis() {
+	redisContext *c;
+    redisReply *reply;
+
+	const char *hostname = "127.0.0.1";
+	int port = 6379;
+	struct timeval timeout = { 1, 500000 }; // 1.5 seconds
+    c = redisConnectWithTimeout(hostname, port, timeout);
+
+	if (c == NULL || c->err) {
+        if (c) {
+            printf("Connection error: %s\n", c->errstr);
+            redisFree(c);
+        } else {
+            printf("Connection error: can't allocate redis context\n");
+        }
+        exit(1);
+    }
+
+	/* PING server */
+	reply = redisCommand(c, "PING");
+    printf("PING: %s\n", reply->str);
+    freeReplyObject(reply);
+
+	/* Disconnects and frees the context */
+    redisFree(c);
+}
 
 /* Print out loading progress information */
 void progress_changed(wkhtmltopdf_converter * c, int p) {
@@ -32,6 +65,8 @@ void warning(wkhtmltopdf_converter * c, const char * msg) {
 
 /* Main method convert pdf */
 int main() {
+	test_redis();
+	
 	wkhtmltopdf_global_settings * gs;
 	wkhtmltopdf_object_settings * os;
 	wkhtmltopdf_converter * c;

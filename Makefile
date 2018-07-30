@@ -1,6 +1,5 @@
 build:
-	g++ -Wall -I./include src/cheesyd.c -L./lib -lwkhtmltox -o bin/cheesyd
-	cp src/sample1.html bin/
+	g++ -Wall -I./deps/hiredis/include -I./deps/wkhtmltopdf/include -L./deps/hiredis/lib -L./deps/wkhtmltopdf/lib -lwkhtmltox -o ./bin/cheesyd ./src/cheesyd.c
 
 run:
-	cd bin/ && ./cheesyd
+	cd ./bin/ && ./cheesyd

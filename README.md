@@ -14,7 +14,7 @@ Well, anyway, I thought the progression is to write some half decent code and pu
 
 ### Dependencies & running env
 
-If you look at the Dockerfile you're gonna see that it depends on jessie-wkhtmltopdf. No worries, I did it and you can get [here](https://github.com/leandrosilva/jessie-wkhtmltopdf).
+If you look at the Dockerfile you're gonna see that it depends on debian-wkhtmltopdf. No worries, I did it and you can get [here](https://github.com/leandrosilva/debian-wkhtmltopdf).
 
 ### Get it now
 
