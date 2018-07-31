@@ -7,45 +7,62 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
+#include <iostream>
+#include <chrono>
+#include <thread>
 
 #include <wkhtmltox/pdf.h>
 #include <hiredis/hiredis.h>
 
 #include "json11/json11.hpp"
 
-/* Test redis connection */
-void test_redis()
+const std::string NO_JOB_YET = "<no-job>";
+
+/* Connect to redis and return a redisContext reference */
+redisContext * create_redis_context()
 {
-    redisContext *c;
+    redisContext *context;
     redisReply *reply;
 
     const char *hostname = "127.0.0.1";
     int port = 6379;
     struct timeval timeout = {1, 500000}; // 1.5 seconds
-    c = redisConnectWithTimeout(hostname, port, timeout);
+    context = redisConnectWithTimeout(hostname, port, timeout);
 
-    if (c == NULL || c->err)
+    if (context == NULL || context->err)
     {
-        if (c)
+        if (context)
         {
-            printf("Connection error: %s\n", c->errstr);
-            redisFree(c);
+            printf("Connection error: %s\n", context->errstr);
+            redisFree(context);
         }
         else
         {
             printf("Connection error: can't allocate redis context\n");
         }
+
         exit(1);
     }
 
     /* PING server */
-    reply = (redisReply*) redisCommand(c, "PING");
+    reply = (redisReply*) redisCommand(context, "PING");
     printf("PING: %s\n", reply->str);
     freeReplyObject(reply);
 
+    return context;
+}
+
+void destroy_redis_context(redisContext * context)
+{
     /* Disconnects and frees the context */
-    redisFree(c);
+    redisFree(context);
+    std::cout << "Redis connection is free\n";
+}
+
+std::string dequeue_job(redisContext * context)
+{
+    return NO_JOB_YET;
 }
 
 /* Print out loading progress information */
@@ -77,8 +94,10 @@ void warning(wkhtmltopdf_converter *c, const char *msg)
 /* Main method convert pdf */
 int main()
 {
-    test_redis();
+    /* Gets a redis connection */
+    redisContext *ctx = create_redis_context();
 
+    /* WK magic stuff */
     wkhtmltopdf_global_settings *gs;
     wkhtmltopdf_object_settings *os;
     wkhtmltopdf_converter *c;
@@ -86,8 +105,20 @@ int main()
     /* Init wkhtmltopdf in graphics less mode */
     wkhtmltopdf_init(false);
 
-    for (int i = 0; i < 5; i++)
-    {        
+    int i = 0;
+
+    while (i < 3)
+    {
+        std::cout << "[" << ++i << "]\n";
+
+        std::string job_id = dequeue_job(ctx);
+        if (job_id == NO_JOB_YET)
+        {
+            std::cout << "Nothing to work on. Sleep\n";
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            continue;
+        }
+
         /*
          * Create a global settings object used to store options that are not
          * related to input objects, note that control of this object is parsed to
@@ -99,7 +130,7 @@ int main()
         //// wkhtmltopdf_set_global_setting(gs, "out", "test.pdf");
         char pdf_name[12];
         snprintf(pdf_name, sizeof pdf_name, "test-p%i.pdf", (i + 1));
-        printf("pdf [%s]", pdf_name);
+        std::cout << "pdf [" << pdf_name << "]\n";
 
         wkhtmltopdf_set_global_setting(gs, "out", pdf_name);
         //// wkhtmltopdf_set_global_setting(gs, "load.cookieJar", "myjar.jar");
@@ -151,6 +182,9 @@ int main()
 
     /* We will no longer be needing wkhtmltopdf funcionality */
     wkhtmltopdf_deinit();
+
+    /* Free redis connection */
+    destroy_redis_context(ctx);
 
     return 0;
 }

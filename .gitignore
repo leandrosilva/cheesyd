@@ -1,3 +1,4 @@
 *.exe
 *.pdf
 .vscode
+bin/cheesyd
