@@ -12,6 +12,8 @@
 #include <wkhtmltox/pdf.h>
 #include <hiredis/hiredis.h>
 
+#include "json11/json11.hpp"
+
 /* Test redis connection */
 void test_redis()
 {
@@ -38,7 +40,7 @@ void test_redis()
     }
 
     /* PING server */
-    reply = redisCommand(c, "PING");
+    reply = (redisReply*) redisCommand(c, "PING");
     printf("PING: %s\n", reply->str);
     freeReplyObject(reply);
 
@@ -85,7 +87,7 @@ int main()
     wkhtmltopdf_init(false);
 
     for (int i = 0; i < 5; i++)
-    {
+    {        
         /*
          * Create a global settings object used to store options that are not
          * related to input objects, note that control of this object is parsed to

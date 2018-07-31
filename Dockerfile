@@ -12,7 +12,7 @@ WORKDIR /deps
 COPY /deps .
 WORKDIR /src
 COPY src .
-RUN g++ -Wall -lwkhtmltox -o /app/cheesyd cheesyd.c
+RUN g++ -Wall -lwkhtmltox -o /app/cheesyd cheesyd.cpp **/*.cpp
 
 FROM build AS clean
 RUN apt-get purge -y --auto-remove g++ \
