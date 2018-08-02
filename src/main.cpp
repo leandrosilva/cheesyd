@@ -4,6 +4,7 @@
  * It's a stub (obviously based on the educative examples of the great
  * wkhtmltopdf C bindings) of a pet project that I'm working on my spare time.
 */
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,55 +16,8 @@
 #include <wkhtmltox/pdf.h>
 #include <hiredis/hiredis.h>
 
+#include "workflow.hpp"
 #include "json11/json11.hpp"
-
-const std::string NO_JOB_YET = "<no-job>";
-
-/* Connect to redis and return a redisContext reference */
-redisContext * create_redis_context()
-{
-    redisContext *context;
-    redisReply *reply;
-
-    const char *hostname = "127.0.0.1";
-    int port = 6379;
-    struct timeval timeout = {1, 500000}; // 1.5 seconds
-    context = redisConnectWithTimeout(hostname, port, timeout);
-
-    if (context == NULL || context->err)
-    {
-        if (context)
-        {
-            printf("Connection error: %s\n", context->errstr);
-            redisFree(context);
-        }
-        else
-        {
-            printf("Connection error: can't allocate redis context\n");
-        }
-
-        exit(1);
-    }
-
-    /* PING server */
-    reply = (redisReply*) redisCommand(context, "PING");
-    printf("PING: %s\n", reply->str);
-    freeReplyObject(reply);
-
-    return context;
-}
-
-void destroy_redis_context(redisContext * context)
-{
-    /* Disconnects and frees the context */
-    redisFree(context);
-    std::cout << "Redis connection is free\n";
-}
-
-std::string dequeue_job(redisContext * context)
-{
-    return NO_JOB_YET;
-}
 
 /* Print out loading progress information */
 void progress_changed(wkhtmltopdf_converter *c, int p)
@@ -94,8 +48,8 @@ void warning(wkhtmltopdf_converter *c, const char *msg)
 /* Main method convert pdf */
 int main()
 {
-    /* Gets a redis connection */
-    redisContext *ctx = create_redis_context();
+    /* Gets a workflow to work on */
+    auto workflow = cheesyd::Workflow::Create();
 
     /* WK magic stuff */
     wkhtmltopdf_global_settings *gs;
@@ -111,8 +65,8 @@ int main()
     {
         std::cout << "[" << ++i << "]\n";
 
-        std::string job_id = dequeue_job(ctx);
-        if (job_id == NO_JOB_YET)
+        std::string job_id = workflow->dequeueJob();
+        if (job_id == "")
         {
             std::cout << "Nothing to work on. Sleep\n";
             std::this_thread::sleep_for(std::chrono::seconds(3));
@@ -182,9 +136,6 @@ int main()
 
     /* We will no longer be needing wkhtmltopdf funcionality */
     wkhtmltopdf_deinit();
-
-    /* Free redis connection */
-    destroy_redis_context(ctx);
 
     return 0;
 }

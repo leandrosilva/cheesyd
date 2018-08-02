@@ -1,1 +1,2 @@
-built on debian stretch
+All Linux libraries were built on a debian stretch-slim.
+All Windows were built on mingw64.
