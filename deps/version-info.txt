@@ -1,2 +1,6 @@
-All Linux libraries were built on a debian stretch-slim.
-All Windows were built on mingw64.
+All Linux libraries were built on a docker debian stretch-slim (x86_64 GNU/Linux) container
+with g++ (Debian 6.3.0-18+deb9u1) 6.3.0 20170516.
+
+wk: https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.stretch_amd64.deb
+hiredis: apt-get install libhiredis0.13
+json11: https://github.com/dropbox/json11

@@ -2,3 +2,4 @@
 *.pdf
 .vscode
 bin/cheesyd
+*.o

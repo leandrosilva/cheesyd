@@ -6,15 +6,19 @@ RUN apt-get install -y g++
 
 FROM tools AS deps
 RUN apt-get install -y libhiredis0.13
+WORKDIR /deps/lib
+WORKDIR /deps/src/json11
+COPY /deps/src/json11 .
+RUN ./build.sh
 
 FROM deps AS build
 WORKDIR /app
 COPY bin/*.html ./
-WORKDIR /deps
-COPY /deps .
+WORKDIR /deps/include
+COPY /deps/include .
 WORKDIR /src
 COPY src .
-RUN g++ -std=c++17 -Wall -I/deps/include -lwkhtmltox -l:libhiredis.so.0.13 -o /app/cheesyd *.cpp /deps/lib/json11.a
+RUN g++ -std=c++17 -Wall -I/deps/include -lwkhtmltox -l:libhiredis.so.0.13 -ljson11 -o /app/cheesyd *.cpp
 
 FROM build AS clean
 RUN apt-get purge -y --auto-remove g++ \
