@@ -45,7 +45,7 @@ std::unique_ptr<Workflow> Workflow::Create()
     }
 
     // PING server
-    reply = (redisReply *)redisCommand(redis_ctx, "PING");
+    reply = (redisReply*)redisCommand(redis_ctx, "PING");
     bool is_connection_ok = strcmp("PONG", reply->str) == 0;
     std::cout << "Testing redis connection: PING: " << reply->str << " [" << (is_connection_ok ? "ok" : "no") << "]\n";
     freeReplyObject(reply);
@@ -63,6 +63,9 @@ std::unique_ptr<Workflow> Workflow::Create()
 
 std::string Workflow::dequeueJob()
 {
+    redisReply *reply = (redisReply*)redisCommand(m_redis_ctx, "RPOPLPUSH cheesyd:queue:job_request cheesyd:queue:in_progress");
+    std::cout << "dequeueJob: " << reply << "\n";
+
     return "";
 }    
 }
