@@ -11,6 +11,9 @@
 #include <thread>
 #include <csignal>
 #include <sstream>
+#include <fstream>
+#include <iterator>
+#include <vector>
 
 #include <wkhtmltox/pdf.h>
 #include <json11/json11.hpp>
@@ -89,7 +92,7 @@ int main() {
             std::string pdf_name("test-" + job_id + ".pdf");
             std::cout << "[" << pdf_name << "]\n";
 
-            wkhtmltopdf_set_global_setting(global_settings, "out", pdf_name.c_str());
+            //// wkhtmltopdf_set_global_setting(global_settings, "out", pdf_name.c_str());
             //// wkhtmltopdf_set_global_setting(gs, "load.cookieJar", "myjar.jar");
 
             /*
@@ -127,11 +130,20 @@ int main() {
             wkhtmltopdf_add_object(converter, object_settings, NULL);
 
             // Perform the actual convertion
-            if (!wkhtmltopdf_convert(converter))
+            if (!wkhtmltopdf_convert(converter)) {
                 fprintf(stderr, "Convertion failed!");
+            }
 
             // Output possible http error code encountered
-            printf("httpErrorCode: %d\n", wkhtmltopdf_http_error_code(converter));
+            printf("- HTTP error code: %d\n", wkhtmltopdf_http_error_code(converter));
+
+            // Store result PDF
+            const unsigned char *pdf_content = NULL;
+            unsigned long pdf_content_length = wkhtmltopdf_get_output(converter, &pdf_content);
+            std::cout << "- PDF content: " << pdf_content_length << " bytes\n";
+            if (pdf_content_length > 0) {
+                workflow->StoreJobResult(job_id, pdf_content, pdf_content_length);
+            }
 
             // Destroy the converter object since we are done with it
             wkhtmltopdf_destroy_converter(converter);

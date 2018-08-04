@@ -1,5 +1,5 @@
-#ifndef CHEESYD_WORKFLOW_H_
-#define CHEESYD_WORKFLOW_H_
+#ifndef CHEESYD_WORKFLOW_H
+#define CHEESYD_WORKFLOW_H
 
 #include <iostream>
 #include <memory>
@@ -26,8 +26,10 @@ public:
 class JobData {
 public:
     JobData(std::string t_payload_str, std::string t_status);
+    JobData(std::string t_payload_str, std::string t_result, std::string t_status);
 
     json11::Json payload;
+    std::string result;
     std::string status;
 };
 
@@ -49,8 +51,9 @@ public:
     std::string DequeueJob();
 
     JobData GetJobData(std::string job_id);
+    void StoreJobResult(std::string job_id, const unsigned char *pdf_content, unsigned long pdf_content_length);
 };
 
 }
 
-#endif // CHEESYD_WORKFLOW_H_
+#endif // CHEESYD_WORKFLOW_H

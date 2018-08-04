@@ -1,8 +1,10 @@
 #include "workflow.hpp"
+#include "base64.hpp"
 
 #include <string.h>
 #include <iostream>
 #include <memory>
+#include <fstream>
 
 #include <hiredis/hiredis.h>
 #include <json11/json11.hpp>
@@ -10,7 +12,6 @@
 namespace cheesyd {
 
 JobNotFoundException::JobNotFoundException(std::string t_what) : m_what(t_what) {
-
 }
 
 const char *JobNotFoundException::what() {
@@ -20,7 +21,12 @@ const char *JobNotFoundException::what() {
 JobData::JobData(std::string t_payload_str, std::string t_status) {
     std::string parsing_err;
     payload = json11::Json::parse(t_payload_str, parsing_err);
+    result = "";
     status = t_status;
+}
+
+JobData::JobData(std::string t_payload_str, std::string t_result, std::string t_status) : JobData(t_payload_str, t_status) {
+    result = t_result;
 }
 
 Workflow::Workflow(redisContext *t_redis_ctx) : m_redis_ctx(t_redis_ctx) {
@@ -29,7 +35,7 @@ Workflow::Workflow(redisContext *t_redis_ctx) : m_redis_ctx(t_redis_ctx) {
 
 Workflow::~Workflow() {
     redisFree(m_redis_ctx);
-    std::cout << "Workflow is gone and the redis connection is free\n";
+    std::cout << "Workflow is gone and the redis connection is free" << std::endl;
 }
 
 std::unique_ptr<Workflow> Workflow::Create() {
@@ -50,7 +56,7 @@ std::unique_ptr<Workflow> Workflow::Create() {
     }
 
     // PING server
-    auto reply = (redisReply *) redisCommand(redis_ctx, "PING");
+    auto reply = (redisReply *)redisCommand(redis_ctx, "PING");
     bool is_connection_ok = strcmp("PONG", reply->str) == 0;
     std::cout << "Testing redis connection: PING -> " << reply->str << " [" << (is_connection_ok ? "ok" : "no") << "]\n";
     freeReplyObject(reply);
@@ -64,9 +70,10 @@ std::unique_ptr<Workflow> Workflow::Create() {
 }
 
 std::string Workflow::DequeueJob() {
-    auto reply = (redisReply *) redisCommand(m_redis_ctx, "RPOPLPUSH cheesyd:queue:job_request cheesyd:queue:job_in_progress");
+    auto reply = (redisReply *)redisCommand(m_redis_ctx, "RPOPLPUSH cheesyd:queue:job_request cheesyd:queue:job_in_progress");
     if (reply->str) {
         std::string reply_content(reply->str);
+        freeReplyObject(reply);
         return reply_content;
     }
 
@@ -74,7 +81,7 @@ std::string Workflow::DequeueJob() {
 }
 
 JobData Workflow::GetJobData(std::string job_id) {
-    auto reply = (redisReply *) redisCommand(m_redis_ctx, "HGETALL cheesyd:job:%s", job_id.c_str());
+    auto reply = (redisReply *)redisCommand(m_redis_ctx, "HGETALL cheesyd:job:%s", job_id.c_str());
     if (reply->elements) {
         std::map<std::string, std::string> fields;
         for (size_t i = 0; i < reply->elements; i++) {
@@ -84,10 +91,31 @@ JobData Workflow::GetJobData(std::string job_id) {
                 fields[key] = value;
             }
         }
-        return JobData(fields["payload"], fields["status"]);
+        freeReplyObject(reply);
+        return JobData(fields["payload"], fields["result"], fields["status"]);
     }
 
     throw JobNotFoundException("Job ID " + job_id + " could not be found (no data available)");
+}
+
+void Workflow::StoreJobResult(std::string job_id, const unsigned char *pdf_content, unsigned long pdf_content_length) {
+    std::string encode = base64_encode(pdf_content, pdf_content_length);
+    std::cout << encode << "\n";
+    auto reply = (redisReply *)redisCommand(m_redis_ctx, "HSET cheesyd:job:%s result %s", job_id.c_str(), encode);
+    if (reply->str) {
+        std::cout << "PDF content store on redis\n";
+
+        // Just for test purpose while developing
+        auto job_data = GetJobData(job_id);
+        if (job_data.result != "") {
+            std::cout << job_data.result << "\n";
+            const unsigned char *content = reinterpret_cast<const unsigned char*>(job_data.result.c_str(), job_data.result.size());
+            std::ofstream pdf_file("test-" + job_id + ".pdf", std::ios::binary);
+            for (unsigned int i = 0; i < sizeof(content); i++) pdf_file << std::noskipws << content[i];
+            pdf_file.close();
+        }
+    }
+    freeReplyObject(reply);
 }
 
 }
