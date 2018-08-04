@@ -9,14 +9,13 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
-
-#include <wkhtmltox/pdf.h>
-#include <hiredis/hiredis.h>
 #include <csignal>
 #include <sstream>
 
+#include <wkhtmltox/pdf.h>
+#include <json11/json11.hpp>
+
 #include "workflow.hpp"
-#include "json11/json11.hpp"
 
 // Exit signal handling
 volatile std::sig_atomic_t interrupt_signal;
@@ -69,69 +68,78 @@ int main() {
     while (!interrupt_signal) {
         std::string job_id = workflow->DequeueJob();
         if (job_id == "") {
-            std::cout << "Nothing to work on. Sleep\n";
+            std::cout << "Nothing to work yet\n";
             std::this_thread::sleep_for(std::chrono::seconds(3));
             continue;
         }
-        std::cout << "Got a convertion job: " << job_id << "\n";
+        std::cout << "Got a conversion job: " << job_id << "\n";
 
-        /*
-         * Create a global settings object used to store options that are not
-         * related to input objects, note that control of this object is parsed to
-         * the converter later, which is then responsible for freeing it
-         */
-        global_settings = wkhtmltopdf_create_global_settings();
+        try {
+            auto job_data = workflow->GetJobData(job_id);
+            std::cout << "Job data: " << job_data.payload.dump() << "\n";
 
-        // We want the result to be storred in the file called test.pdf
-        std::string pdf_name("test-" + job_id + ".pdf");
-        std::cout << "[" << pdf_name << "]\n";
+            /*
+             * Create a global settings object used to store options that are not
+             * related to input objects, note that control of this object is parsed to
+             * the converter later, which is then responsible for freeing it
+             */
+            global_settings = wkhtmltopdf_create_global_settings();
 
-        wkhtmltopdf_set_global_setting(global_settings, "out", pdf_name.c_str());
-        //// wkhtmltopdf_set_global_setting(gs, "load.cookieJar", "myjar.jar");
+            // We want the result to be storred in the file called test.pdf
+            std::string pdf_name("test-" + job_id + ".pdf");
+            std::cout << "[" << pdf_name << "]\n";
 
-        /*
-         * Create a input object settings object that is used to store settings
-         * related to a input object, note again that control of this object is parsed to
-         * the converter later, which is then responsible for freeing it
-         */
-        object_settings = wkhtmltopdf_create_object_settings();
+            wkhtmltopdf_set_global_setting(global_settings, "out", pdf_name.c_str());
+            //// wkhtmltopdf_set_global_setting(gs, "load.cookieJar", "myjar.jar");
 
-        // We want to convert to convert the qstring documentation page
-        //// wkhtmltopdf_set_object_setting(os, "page", "http://doc.trolltech.com/4.6/qstring.html");
-        wkhtmltopdf_set_object_setting(object_settings, "page", "sample1.html");
-        wkhtmltopdf_set_object_setting(object_settings, "load.windowStatus", "ready");
+            /*
+             * Create a input object settings object that is used to store settings
+             * related to a input object, note again that control of this object is parsed to
+             * the converter later, which is then responsible for freeing it
+             */
+            object_settings = wkhtmltopdf_create_object_settings();
 
-        // Create the actual converter object used to convert the pages
-        converter = wkhtmltopdf_create_converter(global_settings);
+            // We want to convert to convert the qstring documentation page
+            //// wkhtmltopdf_set_object_setting(os, "page", "http://doc.trolltech.com/4.6/qstring.html");
+            wkhtmltopdf_set_object_setting(object_settings, "page", "sample1.html");
+            wkhtmltopdf_set_object_setting(object_settings, "load.windowStatus", "ready");
 
-        // Call the progress_changed function when progress changes
-        wkhtmltopdf_set_progress_changed_callback(converter, static_cast<wkhtmltopdf_int_callback>(progress_changed));
+            // Create the actual converter object used to convert the pages
+            converter = wkhtmltopdf_create_converter(global_settings);
 
-        // Call the phase _changed function when the phase changes
-        wkhtmltopdf_set_phase_changed_callback(converter, phase_changed);
+            // Call the progress_changed function when progress changes
+            wkhtmltopdf_set_progress_changed_callback(converter, static_cast<wkhtmltopdf_int_callback>(progress_changed));
 
-        // Call the error function when an error occures
-        wkhtmltopdf_set_error_callback(converter, error);
+            // Call the phase _changed function when the phase changes
+            wkhtmltopdf_set_phase_changed_callback(converter, phase_changed);
 
-        // Call the waring function when a warning is issued
-        wkhtmltopdf_set_warning_callback(converter, warning);
+            // Call the error function when an error occures
+            wkhtmltopdf_set_error_callback(converter, error);
 
-        /*
-         * Add the the settings object describing the qstring documentation page
-         * to the list of pages to convert. Objects are converted in the order in which
-         * they are added
-         */
-        wkhtmltopdf_add_object(converter, object_settings, NULL);
+            // Call the waring function when a warning is issued
+            wkhtmltopdf_set_warning_callback(converter, warning);
 
-        // Perform the actual convertion
-        if (!wkhtmltopdf_convert(converter))
-            fprintf(stderr, "Convertion failed!");
+            /*
+             * Add the the settings object describing the qstring documentation page
+             * to the list of pages to convert. Objects are converted in the order in which
+             * they are added
+             */
+            wkhtmltopdf_add_object(converter, object_settings, NULL);
 
-        // Output possible http error code encountered
-        printf("httpErrorCode: %d\n", wkhtmltopdf_http_error_code(converter));
+            // Perform the actual convertion
+            if (!wkhtmltopdf_convert(converter))
+                fprintf(stderr, "Convertion failed!");
 
-        // Destroy the converter object since we are done with it
-        wkhtmltopdf_destroy_converter(converter);
+            // Output possible http error code encountered
+            printf("httpErrorCode: %d\n", wkhtmltopdf_http_error_code(converter));
+
+            // Destroy the converter object since we are done with it
+            wkhtmltopdf_destroy_converter(converter);
+        } catch (cheesyd::JobNotFoundException e) {
+            std::cout << "Ooops! Can't do it: " << e.what() << "\n";
+        } catch (std::exception e) {
+            std::cout << "Oh no! Job " << job_id << " got it really bad now: " << e.what() << "\n";
+        }
     }
 
     // We will no longer be needing wkhtmltopdf funcionality
