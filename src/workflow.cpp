@@ -100,19 +100,26 @@ JobData Workflow::GetJobData(std::string job_id) {
 
 void Workflow::StoreJobResult(std::string job_id, const unsigned char *pdf_content, unsigned long pdf_content_length) {
     std::string encode = base64_encode(pdf_content, pdf_content_length);
-    std::cout << encode << "\n";
     auto reply = (redisReply *)redisCommand(m_redis_ctx, "HSET cheesyd:job:%s result %s", job_id.c_str(), encode);
-    if (reply->str) {
+    if (reply->integer == 0) {
         std::cout << "PDF content store on redis\n";
+    }
+    freeReplyObject(reply);
+}
 
-        // Just for test purpose while developing
-        auto job_data = GetJobData(job_id);
-        if (job_data.result != "") {
-            std::cout << job_data.result << "\n";
-            const unsigned char *content = reinterpret_cast<const unsigned char*>(job_data.result.c_str(), job_data.result.size());
-            std::ofstream pdf_file("test-" + job_id + ".pdf", std::ios::binary);
-            for (unsigned int i = 0; i < sizeof(content); i++) pdf_file << std::noskipws << content[i];
-            pdf_file.close();
+void Workflow::FinishJob(std::string job_id) {
+    auto reply = (redisReply *)redisCommand(m_redis_ctx, "HSET cheesyd:job:%s status done", job_id.c_str());
+    if (reply->integer == 0) {
+        std::cout << "Job " << job_id << " is tagged done\n";
+
+        reply = (redisReply *)redisCommand(m_redis_ctx, "LREM cheesyd:queue:job_in_progress 0 %s", job_id.c_str());
+        if (reply->integer) {
+            std::cout << "Job " << job_id << " was removed from the in progress queue\n";
+        }
+
+        reply = (redisReply *)redisCommand(m_redis_ctx, "LPUSH cheesyd:queue:job_done %s", job_id.c_str());
+        if (reply->integer) {
+            std::cout << "Job " << job_id << " was pushed to the done queue\n";
         }
     }
     freeReplyObject(reply);

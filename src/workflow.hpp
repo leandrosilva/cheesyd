@@ -52,6 +52,7 @@ public:
 
     JobData GetJobData(std::string job_id);
     void StoreJobResult(std::string job_id, const unsigned char *pdf_content, unsigned long pdf_content_length);
+    void FinishJob(std::string job_id);
 };
 
 }

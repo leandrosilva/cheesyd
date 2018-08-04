@@ -143,6 +143,7 @@ int main() {
             std::cout << "- PDF content: " << pdf_content_length << " bytes\n";
             if (pdf_content_length > 0) {
                 workflow->StoreJobResult(job_id, pdf_content, pdf_content_length);
+                workflow->FinishJob(job_id);
             }
 
             // Destroy the converter object since we are done with it
