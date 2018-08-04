@@ -17,13 +17,10 @@ Workflow::~Workflow() {
 }
 
 std::unique_ptr<Workflow> Workflow::Create() {
-    redisContext *redis_ctx;
-    redisReply *reply;
-
     const char *hostname = "127.0.0.1";
     int port = 6379;
     struct timeval timeout = {1, 500000}; // 1.5 seconds
-    redis_ctx = redisConnectWithTimeout(hostname, port, timeout);
+    auto redis_ctx = redisConnectWithTimeout(hostname, port, timeout);
 
     if (redis_ctx == NULL || redis_ctx->err) {
         if (redis_ctx) {
@@ -37,7 +34,7 @@ std::unique_ptr<Workflow> Workflow::Create() {
     }
 
     // PING server
-    reply = (redisReply *) redisCommand(redis_ctx, "PING");
+    auto reply = (redisReply *) redisCommand(redis_ctx, "PING");
     bool is_connection_ok = strcmp("PONG", reply->str) == 0;
     std::cout << "Testing redis connection: PING -> " << reply->str << " [" << (is_connection_ok ? "ok" : "no") << "]\n";
     freeReplyObject(reply);
