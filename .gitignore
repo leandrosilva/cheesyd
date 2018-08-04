@@ -1,5 +1,13 @@
+### From this app
 *.exe
 *.pdf
-.vscode
-bin/cheesyd
 *.o
+bin/cheesyd
+
+### Visual Studio Code
+.vscode
+
+### JebBrains CLion
+.idea
+CMakeLists.txt
+cmake-build-debug
