@@ -101,8 +101,8 @@ int main() {
 
             // We want to convert to convert the qstring documentation page
             //// wkhtmltopdf_set_object_setting(os, "page", "http://doc.trolltech.com/4.6/qstring.html");
-            wkhtmltopdf_set_object_setting(object_settings, "page", "sample1.html");
-            wkhtmltopdf_set_object_setting(object_settings, "load.windowStatus", "ready");
+            wkhtmltopdf_set_object_setting(object_settings, "page", job_data.payload["page"].string_value().c_str());
+            wkhtmltopdf_set_object_setting(object_settings, "load.windowStatus", job_data.payload["windowStatus"].string_value().c_str());
 
             // Create the actual converter object used to convert the pages
             converter = wkhtmltopdf_create_converter(global_settings);
