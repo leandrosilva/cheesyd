@@ -100,9 +100,22 @@ JobData Workflow::GetJobData(std::string job_id) {
 
 void Workflow::StoreJobResult(std::string job_id, const unsigned char *pdf_content, unsigned long pdf_content_length) {
     std::string encode = base64_encode(pdf_content, pdf_content_length);
-    auto reply = (redisReply *)redisCommand(m_redis_ctx, "HSET cheesyd:job:%s result %s", job_id.c_str(), encode);
+    auto reply = (redisReply *)redisCommand(m_redis_ctx, "HSET cheesyd:job:%s result %s", job_id.c_str(), encode.c_str());
     if (reply->integer == 0) {
         std::cout << "PDF content store on redis\n";
+
+        // Just for test purpose while developing
+        auto job_data = GetJobData(job_id);
+        if (job_data.result != "") {
+            std::cout << "PDF size: local (" << encode.size() << " bytes) == redis (" << job_data.result.size() << " bytes)\n";
+            std::string decode = base64_decode(job_data.result);
+            const unsigned char *content = (const unsigned char*)decode.c_str();
+            std::string pdf_file_name("test-" + job_id + ".pdf");
+            std::ofstream pdf_file(pdf_file_name, std::ios::binary);
+            for (unsigned int i = 0; i < pdf_content_length; i++) pdf_file << std::noskipws << content[i];
+            pdf_file.close();
+            std::cout << "PDF saved to " << pdf_file_name << "\n";
+        }
     }
     freeReplyObject(reply);
 }
