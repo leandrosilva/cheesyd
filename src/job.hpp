@@ -14,13 +14,18 @@ std::string const JOB_STATUS_IN_PROGRESS = "in_progress";
 std::string const JOB_STATUS_DONE = "done";
 std::string const JOB_STATUS_ERROR = "error";
 
-class JobNotFoundException : public std::exception {
+class GenericException : public std::exception {
 private:
     std::string m_what;
 public:
-    JobNotFoundException(std::string t_what);
+    GenericException(std::string t_what);
 
-    const char *what();
+    virtual const char *what();
+};
+
+class InvalidJobException : public GenericException {
+public:
+    InvalidJobException(std::string t_what);
 };
 
 class JobData {
@@ -33,26 +38,25 @@ public:
     std::string status;
 };
 
-class Workflow {
+class JobManager {
 private:
     redisContext *m_redis_ctx;
 
-    Workflow(redisContext *t_redis_ctx);
+    JobManager(redisContext *t_redis_ctx);
 
 public:
-    static std::unique_ptr<Workflow> Create();
+    static std::unique_ptr<JobManager> Create();
 
-    Workflow(const Workflow &) = delete;
+    JobManager(const JobManager &) = delete;
+    ~JobManager();
 
-    ~Workflow();
-
-    Workflow &operator=(const Workflow &) = delete;
+    JobManager &operator=(const JobManager &) = delete;
 
     std::string DequeueJob();
-
     JobData GetJobData(std::string job_id);
     void StoreJobResult(std::string job_id, const unsigned char *pdf_content, unsigned long pdf_content_length);
     void FinishJob(std::string job_id);
+    void FinishJob(std::string job_id, std::string error_message);
 };
 
 }

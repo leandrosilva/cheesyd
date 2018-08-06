@@ -18,7 +18,7 @@
 #include <wkhtmltox/pdf.h>
 #include <json11/json11.hpp>
 
-#include "workflow.hpp"
+#include "job.hpp"
 
 // Exit signal handling
 volatile std::sig_atomic_t interrupt_signal;
@@ -52,8 +52,12 @@ void warning(wkhtmltopdf_converter *c, const char *msg) {
 
 // Main method convert pdf
 int main() {
-    // Gets a workflow to work on
-    auto workflow = cheesyd::Workflow::Create();
+    // Gets a job_manager to work on
+    auto job_manager = cheesyd::JobManager::Create();
+    if (job_manager == nullptr) {
+        std::cerr << "Fail to create JobManager\n";
+        exit(123);
+    }
 
     // WK magic stuff
     wkhtmltopdf_global_settings *global_settings;
@@ -69,8 +73,8 @@ int main() {
 
     // Infinite loop until signal ctrl-c (KILL) received
     while (!interrupt_signal) {
-        std::string job_id = workflow->DequeueJob();
-        if (job_id == "") {
+        std::string job_id = job_manager->DequeueJob();
+        if (job_id.empty()) {
             std::cout << "Nothing to work yet\n";
             std::this_thread::sleep_for(std::chrono::seconds(3));
             continue;
@@ -78,7 +82,7 @@ int main() {
         std::cout << "Got a conversion job: " << job_id << "\n";
 
         try {
-            auto job_data = workflow->GetJobData(job_id);
+            auto job_data = job_manager->GetJobData(job_id);
             std::cout << "Job data: " << job_data.payload.dump() << "\n";
 
             /*
@@ -127,31 +131,38 @@ int main() {
              * to the list of pages to convert. Objects are converted in the order in which
              * they are added
              */
-            wkhtmltopdf_add_object(converter, object_settings, NULL);
+            wkhtmltopdf_add_object(converter, object_settings, nullptr);
 
-            // Perform the actual convertion
+            // Perform the actual conversion
             if (!wkhtmltopdf_convert(converter)) {
-                fprintf(stderr, "Convertion failed!");
+                fprintf(stderr, "Conversion failed!\n");
             }
 
             // Output possible http error code encountered
-            printf("- HTTP error code: %d\n", wkhtmltopdf_http_error_code(converter));
+            int http_error_code = wkhtmltopdf_http_error_code(converter);
+            printf("- HTTP error code: %d\n", http_error_code);
 
-            // Store result PDF
-            const unsigned char *pdf_content = NULL;
-            unsigned long pdf_content_length = wkhtmltopdf_get_output(converter, &pdf_content);
-            std::cout << "- PDF content: " << pdf_content_length << " bytes\n";
-            if (pdf_content_length > 0) {
-                workflow->StoreJobResult(job_id, pdf_content, pdf_content_length);
-                workflow->FinishJob(job_id);
+            if (http_error_code == 0) {
+                // Store result PDF
+                const unsigned char *pdf_content = nullptr;
+                auto pdf_content_length = static_cast<unsigned long>(wkhtmltopdf_get_output(converter, &pdf_content));
+                std::cout << "- PDF content: " << pdf_content_length << " bytes\n";
+                if (pdf_content_length > 0) {
+                    job_manager->StoreJobResult(job_id, pdf_content, pdf_content_length);
+                    job_manager->FinishJob(job_id);
+                }
+            } else {
+                job_manager->FinishJob(job_id, "PDF conversion has failed");
             }
 
             // Destroy the converter object since we are done with it
             wkhtmltopdf_destroy_converter(converter);
-        } catch (cheesyd::JobNotFoundException e) {
+        } catch (cheesyd::InvalidJobException &e) {
             std::cout << "Ooops! Can't do it: " << e.what() << "\n";
-        } catch (std::exception e) {
+            job_manager->FinishJob(job_id, e.what());
+        } catch (std::exception &e) {
             std::cout << "Oh no! Job " << job_id << " got it really bad now: " << e.what() << "\n";
+            job_manager->FinishJob(job_id, e.what());
         }
     }
 
