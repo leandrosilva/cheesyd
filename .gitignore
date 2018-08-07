@@ -3,6 +3,7 @@
 *.pdf
 *.o
 bin/cheesyd
+test/seed_data
 
 ### Visual Studio Code
 .vscode
