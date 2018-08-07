@@ -4,7 +4,7 @@ Daemon to convert HTML to PDF using the mighty wkhtmltopdf C bindings.
 
 ### Status
 
-It is a stub project yet. But it's gonna change soon.
+It is not a complete work yet but it actually can prove that the idea is valid already. It does the happy path in a elementar way and a few error ones too. So far so good.
 
 ### Why?
 
