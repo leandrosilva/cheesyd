@@ -1,9 +1,12 @@
 /*
  * cheesyd
  * 
- * It's a stub (obviously based on the educative examples of the great
- * wkhtmltopdf C bindings) of a pet project that I'm working on my spare time.
-*/
+ * It's a pet project for my very spare time :( that started off based on
+ * the educative examples of the great wkhtmltopdf C bindings.
+ *
+ * Leandro Silva <leandrodoze@gmail.com>
+ * https://github.com/leandrosilva/cheesyd
+ */
 
 #include <string>
 #include <iostream>
