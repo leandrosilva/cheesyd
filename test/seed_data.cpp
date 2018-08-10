@@ -11,13 +11,14 @@ std::string is_ok(redisReply *reply) {
     return reply->type == REDIS_REPLY_ERROR ? "error" : "ok";
 }
 
-void log(std::string command, redisReply *reply) {
+void log(const std::string &command, redisReply *reply) {
     std::cout << command << " [" << is_ok(reply) << "]\n";
 }
 
-void execute_command(redisContext *redis_ctx, std::string command) {
+void execute_command(redisContext *redis_ctx, const std::string &command) {
     auto reply = (redisReply *) redisCommand(redis_ctx, command.c_str());
     log(command, reply);
+    freeReplyObject(reply);
 }
 
 int main() {
@@ -44,7 +45,7 @@ int main() {
     execute_command(redis_ctx, "DEL cheesyd:queue:job_done");
     execute_command(redis_ctx, "DEL cheesyd:queue:job_error");
 
-    for (int i = 1; i < 4; i++) {
+    for (int i = 1; i <= 4; i++) {
         execute_command(redis_ctx, "DEL cheesyd:job:j" + std::to_string(i));
     }
 
@@ -52,7 +53,7 @@ int main() {
 
     // With right data
     for (int i = 1; i <= 2; i++) {
-        execute_command(redis_ctx, "HSET cheesyd:job:j" + std::to_string(i) + " payload {\"page\":\"sample1.html\",\"windowStatus\":\"ready\"} status request");
+        execute_command(redis_ctx, "HSET cheesyd:job:j" + std::to_string(i) + R"( payload {"page":"sample1.html","windowStatus":"ready"} status request)");
         execute_command(redis_ctx, "LPUSH cheesyd:queue:job_request j" + std::to_string(i));
     }
 
