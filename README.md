@@ -1,6 +1,6 @@
 # cheesyd
 
-Daemon to convert HTML to PDF using the mighty wkhtmltopdf C bindings.
+Daemon to convert HTML to PDF using the mighty **wkhtmltopdf** C bindings.
 
 ### Status
 
@@ -16,21 +16,27 @@ Well, anyway, I thought the progression is to write some half decent code and pu
 
 If you look at the Dockerfile you're gonna see that it depends on debian-wkhtmltopdf. No worries, I did it and you can get [here](https://github.com/leandrosilva/debian-wkhtmltopdf).
 
-### Get it now
+### Get and run it now
 
     git clone https://github.com/leandrosilva/cheesyd.git
     cd cheesyd
     docker build -f Dockerfile -t cheesyd .
     docker run -it -v $PWD:/source_code --name cheesyd_test cheesyd
     cheesyd
-    ls -la
 
 Or you can build and run it on your own host machine, by typing from cheesy directory:
 
     make build
     make run
-    ls -la
 
-See? Five .pdf files done.
+Now it's gonna connect to **redis** on localhost:6379 and dequeue jobs from **cheesyd:queue:job_request**, whose which should provide request data on **cheesyd:job:{job_id}** hash as:
 
-Ok, ok... It's not that impressing... Meh.
+    payload = {"page":"sample1.html", "windowStatus":"ready"}
+    status  = request
+
+When it get the job done, it's gonna put the result on the same job hash as:
+
+    result = <base64 encoded PDF content>
+    status = done
+
+There you go.
